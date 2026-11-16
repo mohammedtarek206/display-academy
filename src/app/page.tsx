@@ -1,65 +1,86 @@
-import Image from "next/image";
+"use client";
+
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { Monitor, LayoutDashboard, CalendarDays, Users } from "lucide-react";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="relative min-h-screen flex items-center justify-center overflow-hidden bg-slate-950">
+      {/* Background Effects */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[100px] animate-float" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-600/20 rounded-full blur-[100px] animate-float" style={{ animationDelay: "1s" }} />
+      </div>
+
+      <div className="relative z-10 container max-w-5xl mx-auto px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="text-center mb-16"
+        >
+          <h1 className="text-5xl md:text-7xl font-black text-white mb-6 drop-shadow-xl tracking-tight">
+            Display <span className="text-primary">Academy</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-xl text-slate-300 max-w-2xl mx-auto">
+            نظام الإدارة والعرض  المتكامل ل اكاديميه ارقام 
           </p>
+        </motion.div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <PortalCard
+            title="الشاشة الرئيسية"
+            description="شاشة الاستقبال لعرض الإعلانات والوقت والطقس"
+            icon={<Monitor className="w-10 h-10" />}
+            href="/display/main"
+            delay={0.1}
+          />
+          <PortalCard
+            title="شاشة القاعات"
+            description="عرض حالة القاعات والمحاضرات الحالية"
+            icon={<CalendarDays className="w-10 h-10" />}
+            href="/display/rooms"
+            delay={0.2}
+          />
+          <PortalCard
+            title="شاشة الأنشطة"
+            description="عرض صور وفيديوهات الأنشطة والفعاليات"
+            icon={<Users className="w-10 h-10" />}
+            href="/display/activities"
+            delay={0.3}
+          />
+          <PortalCard
+            title="لوحة الإدارة"
+            description="إدارة النظام والطلاب والمدربين والإعدادات"
+            icon={<LayoutDashboard className="w-10 h-10" />}
+            href="/admin"
+            delay={0.4}
+            variant="primary"
+          />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
+
+function PortalCard({ title, description, icon, href, delay, variant = "default" }: { title: string, description: string, icon: React.ReactNode, href: string, delay: number, variant?: "default" | "primary" }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay }}
+      whileHover={{ y: -5, scale: 1.02 }}
+      className="h-full"
+    >
+      <Link href={href} className={`block h-full glass-card p-8 transition-all duration-300 border-2 ${variant === 'primary' ? 'border-primary/50 hover:border-primary bg-primary/10' : 'border-transparent hover:border-white/20'}`}>
+        <div className={`mb-6 p-4 inline-block rounded-2xl ${variant === 'primary' ? 'bg-primary text-white' : 'bg-white/10 text-white'}`}>
+          {icon}
+        </div>
+        <h3 className="text-2xl font-bold text-white mb-3">{title}</h3>
+        <p className="text-slate-400 font-medium leading-relaxed">{description}</p>
+      </Link>
+    </motion.div>
+  );
+}
+
