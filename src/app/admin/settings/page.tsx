@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { AcademySettings } from "@/lib/types";
 import ImageUpload from "@/components/admin/ImageUpload";
-import { Save, Loader2, Building2, Phone, Mail, Globe, Facebook, Instagram, Twitter } from "lucide-react";
+import { Save, Loader2, Building2, Phone, Mail, Globe, Facebook, Instagram } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function SettingsPage() {
@@ -110,7 +110,7 @@ export default function SettingsPage() {
         {[
           { k:"facebook", l:"Facebook", icon:Facebook, ph:"https://facebook.com/..." },
           { k:"instagram", l:"Instagram", icon:Instagram, ph:"https://instagram.com/..." },
-          { k:"twitter", l:"Twitter / X", icon:Twitter, ph:"https://twitter.com/..." },
+          { k:"twitter", l:"Twitter / X", icon:Globe, ph:"https://twitter.com/..." },
         ].map(({k,l,icon:Icon,ph})=>(
           <div key={k}>
             <label className={labelCls}>{l}</label>
