@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { AcademySettings } from "@/lib/types";
 import ImageUpload from "@/components/admin/ImageUpload";
-import { Save, Loader2, Building2, Phone, Mail, Globe, Facebook, Instagram } from "lucide-react";
+import { Save, Loader2, Building2, Phone, Mail, Globe, Link } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function SettingsPage() {
@@ -108,9 +108,9 @@ export default function SettingsPage() {
       <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
         <h3 className="text-lg font-bold flex items-center gap-2"><Globe className="w-5 h-5 text-primary"/>مواقع التواصل الاجتماعي</h3>
         {[
-          { k:"facebook", l:"Facebook", icon:Facebook, ph:"https://facebook.com/..." },
-          { k:"instagram", l:"Instagram", icon:Instagram, ph:"https://instagram.com/..." },
-          { k:"twitter", l:"Twitter / X", icon:Globe, ph:"https://twitter.com/..." },
+          { k:"facebook", l:"Facebook", icon:Link, ph:"https://facebook.com/..." },
+          { k:"instagram", l:"Instagram", icon:Link, ph:"https://instagram.com/..." },
+          { k:"twitter", l:"Twitter / X", icon:Link, ph:"https://twitter.com/..." },
         ].map(({k,l,icon:Icon,ph})=>(
           <div key={k}>
             <label className={labelCls}>{l}</label>
