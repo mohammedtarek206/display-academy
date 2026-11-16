@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { AcademySettings, Lecture, Room } from "@/lib/types";
+import type { AcademySettings } from "@/lib/types";
 import TopBar from "@/components/display/TopBar";
 import Ticker from "@/components/display/Ticker";
 import MediaSlider from "@/components/display/MediaSlider";
@@ -10,17 +10,10 @@ import RoomList from "@/components/display/RoomList";
 import { Users, Presentation, Award, UserCheck, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-interface StatItem {
-  students: number;
-  trainers: number;
-  rooms: number;
-  lectures: number;
-}
-
 export default function MainDisplay() {
   const supabase = createClient();
   const [settings, setSettings] = useState<Partial<AcademySettings> | null>(null);
-  const [stats, setStats] = useState<StatItem>({ students: 0, trainers: 0, rooms: 0, lectures: 0 });
+  const [stats, setStats] = useState({ students: 0, trainers: 0, rooms: 0, lectures: 0 });
   const [activeLectures, setActiveLectures] = useState<any[]>([]);
   const [mediaItems, setMediaItems] = useState<{id:string; type:"image"|"video"; url:string; title?:string}[]>([]);
   const [welcomeMessage, setWelcomeMessage] = useState<string>("");
@@ -28,11 +21,9 @@ export default function MainDisplay() {
 
   const loadData = useCallback(async () => {
     try {
-      // Settings
       const { data: set } = await supabase.from("academy_settings").select("*").limit(1).single();
       if (set) setSettings(set);
 
-      // Stats
       const [s, t, r, l] = await Promise.all([
         supabase.from("students").select("id", { count: "exact", head: true }),
         supabase.from("trainers").select("id", { count: "exact", head: true }),
@@ -41,29 +32,21 @@ export default function MainDisplay() {
       ]);
       setStats({ students: s.count??0, trainers: t.count??0, rooms: r.count??0, lectures: l.count??0 });
 
-      // Active Lectures
       const { data: lectures } = await supabase.from("lectures")
         .select("*, room:rooms(*), trainer:trainers(name), course:courses(name)")
         .eq("is_active", true);
       
-      // Also fetch all rooms to show available ones
       const { data: allRooms } = await supabase.from("rooms").select("*").order("name");
       
-      // Combine to format required by RoomList
       const roomsList = (allRooms || []).map(room => {
         const activeLec = lectures?.find(lec => lec.room_id === room.id);
-        
         let remaining = "";
         if (activeLec) {
-          const end = new Date(activeLec.end_time).getTime();
-          const now = new Date().getTime();
-          const diff = Math.max(0, Math.floor((end - now) / 60000));
-          remaining = diff > 60 ? `${Math.floor(diff/60)} ساعة و ${diff%60} دقيقة` : `${diff} دقيقة`;
+          const diff = Math.max(0, Math.floor((new Date(activeLec.end_time).getTime() - Date.now()) / 60000));
+          remaining = diff > 60 ? `${Math.floor(diff/60)}س ${diff%60}د` : `${diff} دقيقة`;
         }
-
         return {
-          id: room.id,
-          name: room.name,
+          id: room.id, name: room.name,
           status: activeLec ? "occupied" : room.status,
           trainer: activeLec?.trainer?.name,
           course: activeLec?.course?.name,
@@ -71,37 +54,27 @@ export default function MainDisplay() {
           remainingTime: remaining
         };
       });
-      
-      // Sort so occupied are first
       roomsList.sort((a,b) => (a.status === "occupied" ? -1 : 1) - (b.status === "occupied" ? -1 : 1));
       setActiveLectures(roomsList);
 
-      // Media
       const [imgRes, vidRes] = await Promise.all([
         supabase.from("gallery_images").select("*").eq("is_active", true).order("display_order"),
         supabase.from("videos").select("*").eq("is_active", true).order("display_order")
       ]);
-      
-      const media = [
-        ...(imgRes.data || []).map(img => ({ id: img.id, type: "image" as const, url: img.url, title: img.title || undefined })),
-        ...(vidRes.data || []).map(vid => ({ id: vid.id, type: "video" as const, url: vid.url, title: vid.title || undefined }))
-      ];
-      setMediaItems(media);
+      setMediaItems([
+        ...(imgRes.data||[]).map(i => ({ id:i.id, type:"image" as const, url:i.url, title:i.title||undefined })),
+        ...(vidRes.data||[]).map(v => ({ id:v.id, type:"video" as const, url:v.url, title:v.title||undefined }))
+      ]);
 
-      // Welcome Message (for main screen or all)
       const now = new Date().toISOString();
       const { data: msg } = await supabase.from("welcome_messages")
-        .select("text")
-        .eq("is_active", true)
-        .in("display_on_screen", ["all", "main"])
+        .select("text").eq("is_active", true)
+        .in("display_on_screen", ["all","main"])
         .or(`scheduled_time.is.null,scheduled_time.lte.${now}`)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-      
-      setWelcomeMessage(msg?.text || "مرحباً بكم في أكاديمية العرض!");
-    } catch (error) {
-      console.error("Error loading data:", error);
+        .order("created_at", { ascending: false }).limit(1).single();
+      setWelcomeMessage(msg?.text || "مرحباً بكم!");
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -109,109 +82,161 @@ export default function MainDisplay() {
 
   useEffect(() => {
     loadData();
-    const timer = setInterval(() => {
-      // Periodic soft refresh for remaining time
-      loadData();
-    }, 60000);
-
-    const ch = supabase.channel("main-display-rt")
-      .on("postgres_changes", { event: "*", schema: "public" }, loadData)
-      .subscribe();
-      
+    const timer = setInterval(loadData, 60000);
+    const ch = supabase.channel("main-rt")
+      .on("postgres_changes", { event:"*", schema:"public" }, loadData).subscribe();
     return () => { clearInterval(timer); supabase.removeChannel(ch); };
   }, [loadData, supabase]);
 
-  if (loading) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center bg-slate-950">
-        <Loader2 className="w-12 h-12 animate-spin text-primary" />
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="h-screen w-screen flex items-center justify-center bg-slate-950">
+      <Loader2 className="animate-spin text-blue-400" style={{ width:"5vw", height:"5vw" }} />
+    </div>
+  );
 
-  // Handle Dynamic Sections
-  const showStats = settings?.display_show_top_students !== false; // Reuse flag or we can just always show stats
-  
   return (
-    <div className="h-screen w-screen flex flex-col p-6 overflow-hidden bg-[url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564')] bg-cover bg-center" dir="rtl">
-      {/* Dark Overlay */}
-      <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xl z-0" />
+    <div
+      className="display-root"
+      dir="rtl"
+      style={{
+        width: "100vw",
+        height: "100vh",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        padding: "1.2vh 1.5vw",
+        gap: "1vh",
+        background: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)",
+        position: "relative",
+      }}
+    >
+      {/* Background Grid */}
+      <div style={{
+        position:"absolute", inset:0, zIndex:0,
+        backgroundImage: "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0)",
+        backgroundSize: "40px 40px"
+      }} />
 
-      <div className="relative z-10 flex flex-col h-full">
+      {/* Glow blobs */}
+      <div style={{ position:"absolute", top:"10%", right:"20%", width:"30vw", height:"30vw", borderRadius:"50%", background:"rgba(37,99,235,0.08)", filter:"blur(80px)", zIndex:0 }} />
+      <div style={{ position:"absolute", bottom:"20%", left:"10%", width:"20vw", height:"20vw", borderRadius:"50%", background:"rgba(124,58,237,0.08)", filter:"blur(60px)", zIndex:0 }} />
+
+      <div style={{ position:"relative", zIndex:1, flex:1, display:"flex", flexDirection:"column", gap:"1vh", minHeight:0 }}>
+        
+        {/* TOP BAR */}
         <TopBar />
 
-        <div className="flex-1 grid grid-cols-12 gap-8 min-h-0 pb-20">
-          
-          {/* Right Section: Stats & Welcome */}
-          <div className="col-span-3 flex flex-col gap-6">
-            <div className="grid grid-cols-2 gap-4">
-              <StatCard title="الطلاب" value={stats.students.toString()} icon={<Users />} color="blue" />
-              <StatCard title="المدربون" value={stats.trainers.toString()} icon={<UserCheck />} color="emerald" />
-              <StatCard title="القاعات" value={stats.rooms.toString()} icon={<Presentation />} color="purple" />
-              <StatCard title="المحاضرات" value={stats.lectures.toString()} icon={<Award />} color="amber" />
+        {/* MAIN CONTENT */}
+        <div style={{
+          flex: 1,
+          display: "grid",
+          gridTemplateColumns: "23fr 54fr 23fr",
+          gap: "1.5vw",
+          minHeight: 0,
+          paddingBottom: "6vh", // space for ticker
+        }}>
+
+          {/* ===== RIGHT: Stats + Welcome ===== */}
+          <div style={{ display:"flex", flexDirection:"column", gap:"1.2vh", minHeight:0 }}>
+            
+            {/* Stats Grid */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.8vw" }}>
+              {[
+                { label:"الطلاب",    value:stats.students,  icon:<Users />,         color:"#3b82f6", glow:"rgba(59,130,246,0.15)" },
+                { label:"المدربون",  value:stats.trainers,  icon:<UserCheck />,     color:"#10b981", glow:"rgba(16,185,129,0.15)" },
+                { label:"القاعات",   value:stats.rooms,     icon:<Presentation />,  color:"#8b5cf6", glow:"rgba(139,92,246,0.15)" },
+                { label:"المحاضرات",value:stats.lectures,  icon:<Award />,         color:"#f59e0b", glow:"rgba(245,158,11,0.15)" },
+              ].map(s => (
+                <motion.div
+                  key={s.label}
+                  initial={{ opacity:0, scale:0.9 }}
+                  animate={{ opacity:1, scale:1 }}
+                  style={{
+                    background: s.glow,
+                    border: `1px solid ${s.color}30`,
+                    borderRadius: "1.2vw",
+                    padding: "1.5vh 0.8vw",
+                    display:"flex", flexDirection:"column",
+                    alignItems:"center", justifyContent:"center",
+                    gap:"0.6vh",
+                    backdropFilter:"blur(12px)",
+                    boxShadow:`0 0 20px ${s.glow}`,
+                    minHeight:"10vh",
+                  }}
+                >
+                  <div style={{
+                    color: s.color,
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    width:"3vw", height:"3vw",
+                    background:"rgba(255,255,255,0.08)",
+                    borderRadius:"0.8vw", padding:"0.5vw"
+                  }}>
+                    {s.icon}
+                  </div>
+                  <div style={{ fontSize:"3.5vw", fontWeight:900, color:"#fff", lineHeight:1 }}>{s.value}</div>
+                  <div style={{ fontSize:"1.1vw", fontWeight:600, color:`${s.color}cc` }}>{s.label}</div>
+                </motion.div>
+              ))}
             </div>
 
-            <div className="glass-card p-6 flex-1 flex flex-col relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 blur-3xl rounded-full" />
-              <h2 className="text-2xl font-bold text-white mb-6 relative z-10">رسالة اليوم</h2>
-              <div className="flex-1 flex items-center justify-center relative z-10">
+            {/* Welcome Message */}
+            <div style={{
+              flex:1, borderRadius:"1.2vw", padding:"1.5vh 1.2vw",
+              background:"rgba(255,255,255,0.05)",
+              backdropFilter:"blur(16px)",
+              border:"1px solid rgba(255,255,255,0.1)",
+              display:"flex", flexDirection:"column",
+              overflow:"hidden", position:"relative",
+              minHeight:0,
+            }}>
+              <div style={{ position:"absolute", top:0, right:0, width:"10vw", height:"10vw", background:"rgba(37,99,235,0.15)", borderRadius:"50%", filter:"blur(30px)" }} />
+              <div style={{ fontSize:"1.3vw", fontWeight:700, color:"rgba(255,255,255,0.6)", marginBottom:"1vh" }}>💬 رسالة اليوم</div>
+              <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center" }}>
                 <AnimatePresence mode="wait">
-                  <motion.p 
+                  <motion.p
                     key={welcomeMessage}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.5 }}
-                    className="text-3xl text-center font-black leading-relaxed text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-primary-200"
+                    initial={{ opacity:0, y:20 }}
+                    animate={{ opacity:1, y:0 }}
+                    exit={{ opacity:0, y:-20 }}
+                    style={{
+                      fontSize:"2vw", fontWeight:900, textAlign:"center", lineHeight:1.5,
+                      background:"linear-gradient(135deg, #60a5fa, #a78bfa)",
+                      WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
+                    }}
                   >
-                    "{welcomeMessage}"
+                    {welcomeMessage}
                   </motion.p>
                 </AnimatePresence>
               </div>
             </div>
           </div>
 
-          {/* Center Section: Media Slider */}
-          <div className="col-span-6 rounded-3xl overflow-hidden shadow-2xl border border-white/10">
+          {/* ===== CENTER: Media Slider ===== */}
+          <div style={{
+            borderRadius:"1.5vw", overflow:"hidden",
+            border:"1px solid rgba(255,255,255,0.1)",
+            boxShadow:"0 25px 60px rgba(0,0,0,0.5)",
+            minHeight:0,
+          }}>
             {settings?.display_show_images !== false || settings?.display_show_videos !== false ? (
-               <MediaSlider items={mediaItems} interval={10000} />
+              <MediaSlider items={mediaItems} interval={10000} />
             ) : (
-              <div className="w-full h-full flex items-center justify-center glass-card">
-                <span className="text-white/50 text-xl font-bold">الوسائط معطلة</span>
+              <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(255,255,255,0.05)" }}>
+                <span style={{ color:"rgba(255,255,255,0.3)", fontSize:"2vw", fontWeight:700 }}>الوسائط معطلة</span>
               </div>
             )}
           </div>
 
-          {/* Left Section: Rooms Status */}
-          <div className="col-span-3 h-full">
-            <RoomList rooms={activeLectures.slice(0, 5)} />
+          {/* ===== LEFT: Rooms Status ===== */}
+          <div style={{ minHeight:0, overflow:"hidden" }}>
+            <RoomList rooms={activeLectures} />
           </div>
 
         </div>
-
-        {settings?.display_show_announcements !== false && (
-          <Ticker />
-        )}
       </div>
-    </div>
-  );
-}
 
-function StatCard({ title, value, icon, color }: { title: string, value: string, icon: React.ReactNode, color: string }) {
-  const colors = {
-    blue: "from-blue-500/20 to-blue-600/5 text-blue-400 border-blue-500/20",
-    emerald: "from-emerald-500/20 to-emerald-600/5 text-emerald-400 border-emerald-500/20",
-    purple: "from-purple-500/20 to-purple-600/5 text-purple-400 border-purple-500/20",
-    amber: "from-amber-500/20 to-amber-600/5 text-amber-400 border-amber-500/20",
-  };
-
-  return (
-    <div className={`glass-card p-6 flex flex-col items-center justify-center gap-3 border bg-gradient-to-br ${colors[color as keyof typeof colors]}`}>
-      <div className="p-3 bg-white/10 rounded-xl">
-        {icon}
-      </div>
-      <div className="text-3xl font-black text-white">{value}</div>
-      <div className="text-sm font-semibold opacity-80">{title}</div>
+      {/* TICKER */}
+      {settings?.display_show_announcements !== false && <Ticker />}
     </div>
   );
 }
