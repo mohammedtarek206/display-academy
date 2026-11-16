@@ -60,7 +60,9 @@ export default function TrainersPage() {
     if (!form.name?.trim()) { setError("اسم المدرب مطلوب"); return; }
     setSaving(true); setError(null);
     const payload = { name:form.name, specialization:form.specialization||null, phone:form.phone||null, email:form.email||null, image_url:form.image_url||null, bio:form.bio||null, is_active:form.is_active??true };
-    const { error: e } = editId ? await supabase.from("trainers").update(payload).eq("id", editId) : await supabase.from("trainers").insert(payload);
+    let e;
+    if (editId) { const r = await supabase.from("trainers").update(payload).eq("id", editId); e = r.error; }
+    else { const r = await supabase.from("trainers").insert(payload); e = r.error; }
     setSaving(false);
     if (e) { setError(e.message); return; }
     setModalOpen(false); load();

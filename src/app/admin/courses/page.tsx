@@ -48,7 +48,9 @@ export default function CoursesPage() {
     if (!form.name?.trim()) { setError("اسم المادة مطلوب"); return; }
     setSaving(true); setError(null);
     const payload = { name:form.name, description:form.description||null, color:form.color||"#3b82f6", is_active:form.is_active??true };
-    const { error: e } = editId ? await supabase.from("courses").update(payload).eq("id",editId) : await supabase.from("courses").insert(payload);
+    let e;
+    if (editId) { const r = await supabase.from("courses").update(payload).eq("id",editId); e = r.error; }
+    else { const r = await supabase.from("courses").insert(payload); e = r.error; }
     setSaving(false);
     if (e) { setError(e.message); return; }
     setModalOpen(false); load();

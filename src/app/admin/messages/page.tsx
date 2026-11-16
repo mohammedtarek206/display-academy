@@ -44,7 +44,9 @@ export default function MessagesPage() {
     if (!form.text?.trim()) { setError("نص الرسالة مطلوب"); return; }
     setSaving(true); setError(null);
     const payload = { text:form.text, is_active:form.is_active??true, scheduled_time:form.scheduled_time||null, display_on_screen:form.display_on_screen||"all" };
-    const { error: e } = editId ? await supabase.from("welcome_messages").update(payload).eq("id",editId) : await supabase.from("welcome_messages").insert(payload);
+    let e;
+    if (editId) { const r = await supabase.from("welcome_messages").update(payload).eq("id",editId); e = r.error; }
+    else { const r = await supabase.from("welcome_messages").insert(payload); e = r.error; }
     setSaving(false);
     if (e) { setError(e.message); return; }
     setModalOpen(false); load();

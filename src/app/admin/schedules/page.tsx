@@ -63,7 +63,9 @@ export default function SchedulesPage() {
       students_count:Number(form.students_count)||0, is_active:form.is_active??false 
     };
     
-    const { error: e } = editId ? await supabase.from("lectures").update(payload).eq("id", editId) : await supabase.from("lectures").insert(payload);
+    let e;
+    if (editId) { const r = await supabase.from("lectures").update(payload).eq("id", editId); e = r.error; }
+    else { const r = await supabase.from("lectures").insert(payload); e = r.error; }
     setSaving(false);
     if (e) { setError(e.message); return; }
     setModalOpen(false); load();

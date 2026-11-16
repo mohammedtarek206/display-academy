@@ -57,7 +57,9 @@ export default function RoomsPage() {
     if (!form.name?.trim()) { setError("اسم القاعة مطلوب"); return; }
     setSaving(true); setError(null);
     const payload = { name:form.name, capacity:Number(form.capacity)||20, status:form.status??"available", image_url:form.image_url||null, description:form.description||null, trainer_id:form.trainer_id||null };
-    const { error: e } = editId ? await supabase.from("rooms").update(payload).eq("id", editId) : await supabase.from("rooms").insert(payload);
+    let e;
+    if (editId) { const r = await supabase.from("rooms").update(payload).eq("id", editId); e = r.error; }
+    else { const r = await supabase.from("rooms").insert(payload); e = r.error; }
     setSaving(false);
     if (e) { setError(e.message); return; }
     setModalOpen(false); load();

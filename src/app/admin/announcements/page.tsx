@@ -52,7 +52,14 @@ export default function AnnouncementsPage() {
     if (!form.text?.trim()) { setError("نص الإعلان مطلوب"); return; }
     setSaving(true); setError(null);
     const payload = { text:form.text, color:form.color||"#ffffff", speed:form.speed??"normal", is_active:form.is_active??true, start_date:form.start_date||null, end_date:form.end_date||null };
-    const { error: e } = editId ? await supabase.from("announcements").update(payload).eq("id", editId) : await supabase.from("announcements").insert(payload);
+    let e;
+    if (editId) {
+      const res = await supabase.from("announcements").update(payload).eq("id", editId);
+      e = res.error;
+    } else {
+      const res = await supabase.from("announcements").insert(payload);
+      e = res.error;
+    }
     setSaving(false);
     if (e) { setError(e.message); return; }
     setModalOpen(false); load();

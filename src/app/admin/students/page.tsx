@@ -68,7 +68,9 @@ export default function StudentsPage() {
     if (!form.name?.trim() || !form.code?.trim()) { setError("الاسم والكود مطلوبان"); return; }
     setSaving(true); setError(null);
     const payload = { name:form.name, code:form.code, phone:form.phone||null, email:form.email||null, image_url:form.image_url||null, current_room_id:form.current_room_id||null, current_trainer_id:form.current_trainer_id||null, current_course_id:form.current_course_id||null, subscription_status:form.subscription_status??"active" };
-    const { error: e } = editId ? await supabase.from("students").update(payload).eq("id", editId) : await supabase.from("students").insert(payload);
+    let e;
+    if (editId) { const r = await supabase.from("students").update(payload).eq("id", editId); e = r.error; }
+    else { const r = await supabase.from("students").insert(payload); e = r.error; }
     setSaving(false);
     if (e) { setError(e.message); return; }
     setModalOpen(false); load();
